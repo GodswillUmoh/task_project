@@ -1,0 +1,161 @@
+
+{% extends 'base.html' %}
+
+{% block content %}
+<h1 class="text-2xl font-bold mb-4">Tasks</h1>
+<table class="min-w-full bg-white">
+    <thead>
+        <tr>
+            <th class="py-2">Title</th>
+            <th class="py-2">Status</th>
+            <th class="py-2">Priority</th>
+            <th class="py-2">Due Date</th>
+            <th class="py-2">Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for task in tasks %}
+        <tr>
+            <td class="py-2">{{ task.title }}</td>
+            <td class="py-2">{{ task.get_status_display }}</td>
+            <td class="py-2">{{ task.get_priority_display }}</td>
+            <td class="py-2">{{ task.due_date }}</td>
+            <td class="py-2">
+                <a href="{% url 'task_detail' task.pk %}" class="text-blue-500">View</a>
+                <a href="{% url 'task_update' task.pk %}" class="text-blue-500">Edit</a>
+                <form action="{% url 'task_delete' task.pk %}" method="post" style="display:inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="text-red-500">Delete</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+<a href="{% url 'task_create' %}" class="bg-blue-500 text-white py-2 px-4 rounded">Add Task</a>
+
+<label for="status-filter">Filter by status:</label>
+<select id="status-filter" class="bg-white border border-gray-300 rounded py-2 px-4">
+    <option value="in_progress">In Progress</option>
+    <option value="completed">Completed</option>
+    <option value="overdue">Overdue</option>
+</select>
+
+<table class="min-w-full bg-white">
+    <thead>
+        <tr>
+            <th class="py-2">Title</th>
+            <th class="py-2">Status</th>
+            <th class="py-2">Priority</th>
+            <th class="py-2">Due Date</th>
+            <th class="py-2">Actions</th>
+        </tr>
+    </thead>
+    <tbody id="task-table-body">
+        <!-- Dynamic content will be loaded here -->
+    </tbody>
+</table>
+
+<button class="open-modal bg-blue-500 text-white py-2 px-4 rounded" data-url="{% url 'task_create' %}">Add Task</button>
+<a href="{% url 'task_update' task.pk %}" class="open-modal text-blue-500" data-url="{% url 'task_update' task.pk %}">Edit</a>
+
+<div class="draggable" data-id="{{ task.id }}">
+  {{ task.title }}
+</div>
+<div class="droppable" data-status="completed">
+  Drop here to mark as completed
+</div>
+
+<div id="task-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center">
+    <div class="bg-white p-6 rounded shadow-lg w-1/2">
+        <div class="modal-content">
+
+<script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js">
+    $(document).ready(function() {
+      // Open modal for adding/editing tasks
+      $('.open-modal').click(function() {
+          let url = $(this).data('url');
+          $.ajax({
+              url: url,
+              method: 'GET',
+              success: function(data) {
+                  $('#task-modal .modal-content').html(data);
+                  $('#task-modal').removeClass('hidden');
+              }
+          });
+      });
+    
+      // Submit form via AJAX
+      $(document).on('submit', '#task-form', function(event) {
+          event.preventDefault();
+          let form = $(this);
+          let url = form.attr('action');
+          let method = form.attr('method');
+          $.ajax({
+              url: url,
+              method: method,
+              data: form.serialize(),
+              success: function(data) {
+                  if (data.success) {
+                      $('#task-modal').addClass('hidden');
+                      loadTasks('in_progress');
+                  } else {
+                      $('#task-modal .modal-content').html(data);
+                  }
+              }
+          });
+      });
+    
+      // Close modal
+      $('#task-modal').click(function(event) {
+          if ($(event.target).is('#task-modal')) {
+              $(this).addClass('hidden');
+          }
+      });
+    });
+    
+    $(function() {
+        $(".draggable").draggable({
+            revert: "invalid",
+            helper: "clone",
+            start: function(event, ui) {
+                $(this).hide();
+            },
+            stop: function(event, ui) {
+                $(this).show();
+            }
+        });
+    
+        $(".droppable").droppable({
+            accept: ".draggable",
+            drop: function(event, ui) {
+                let taskId = ui.draggable.data('id');
+                let newStatus = $(this).data('status');
+                $.ajax({
+                    url: `/api/tasks/${taskId}/`,
+                    method: 'PATCH',
+                    data: {
+                        status: newStatus
+                    },
+                    success: function(data) {
+                        loadTasks('in_progress');
+                    }
+                });
+            }
+        });
+    });
+    
+    $(document).ready(function() {
+            $('#task-form').on('submit', function(event) {
+                // Add your validation logic here
+                let isValid = true;
+    
+                if (!isValid) {
+                    event.preventDefault();
+                }
+            }); 
+        });
+    
+    </script>
+
+{% endblock %}
